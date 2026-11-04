@@ -198,6 +198,12 @@ function googleCalUrl(task, due) {
     dates: `${ymd(due)}/${ymd(addDays(due, 1))}`, details: intervalLabel(task) + (task.notes ? '\n' + task.notes : '') + '\nReminder: set a 1-week notification.' });
   return 'https://calendar.google.com/calendar/render?' + p.toString();
 }
+const VEHICLES = ['Kia', 'Hyundai'];
+/** Vehicle of a task from its name prefix ("Kia: ..."), else null. */
+function vehicleOf(t) { if (!t || t.category !== 'car') return null; const m = /^\s*([^:]+):/.exec(t.name || ''); return m && VEHICLES.includes(m[1].trim()) ? m[1].trim() : null; }
+function stripVehicle(name) { return String(name || '').replace(new RegExp('^\\s*(' + VEHICLES.join('|') + ')\\s*:\\s*'), ''); }
+/** Odometer for a vehicle from settings (odometer_kia etc.), falling back to legacy 'odometer'. */
+function odometerFor(settings, veh) { const v = (veh && settings['odometer_' + veh.toLowerCase()]) || settings.odometer; return v != null && v !== '' ? Number(v) : null; }
 // ====== LOGIC-END ======
 
 // ====== Helpers ======
@@ -278,7 +284,7 @@ async function loadAll() {
   LS.set('tasks', state.tasks); LS.set('settings', state.settings);
   render();
 }
-const odometer = () => state.settings.odometer ? Number(state.settings.odometer) : null;
+const odometer = (t) => odometerFor(state.settings, vehicleOf(t));
 
 // Offline queue: [{op:'upsert'|'delete'|'insert', table, row|id}]
 function queue(item) { const q = LS.get('queue', []); q.push(item); LS.set('queue', q); }
@@ -331,8 +337,8 @@ function onChange(tb, p) {
 
 // ====== Rendering ======
 function decorated() {
-  const today = parseDate(todayISO()), odo = odometer();
-  return state.tasks.map((t) => ({ t, s: computeStatus(t, today, odo) }));
+  const today = parseDate(todayISO());
+  return state.tasks.map((t) => ({ t, s: computeStatus(t, today, odometer(t)) }));
 }
 function sortUrgency(a, b) {
   return (RANK[b.s.status] - RANK[a.s.status]) || ((a.s.days ?? 1e9) - (b.s.days ?? 1e9)) || a.t.name.localeCompare(b.t.name);
@@ -343,7 +349,7 @@ function taskCard({ t, s }) {
   return `<div class="card task" data-id="${esc(t.id)}" role="button" tabindex="0">
     <div class="ill">${t.category === 'car' ? SVG.car() : SVG.castle()}</div>
     <div style="flex:1;min-width:0"><h3>${esc(t.name)} ${t.calendar_event_id ? `<span style="color:var(--accent)">${SVG.cal}</span>` : ''}</h3>
-      <div><span class="badge">${t.category === 'car' ? 'Car' : 'Home'}</span>${chip(s.status)}</div>
+      <div><span class="badge">${t.category === 'car' ? '🚗 ' + esc(vehicleOf(t) || 'Car') : 'Home'}</span>${chip(s.status)}</div>
       <div class="meta">${esc(intervalLabel(t))}<br>Last done: ${fmtNice(t.last_done)}${t.last_done_miles != null ? ' @ ' + Number(t.last_done_miles).toLocaleString() + ' mi' : ''}<br>
       Next due: ${s.due ? fmtNice(s.due) + ' (' + relText(s.days) + ')' : '—'}${esc(miles)}</div>
       ${t.notes ? `<div class="meta" style="margin-top:4px">📝 ${esc(t.notes)}</div>` : ''}</div></div>`;
@@ -360,12 +366,12 @@ function render() {
     const all = decorated();
     const cnt = (st) => all.filter((x) => x.s.status === st).length;
     const q = state.q.toLowerCase();
-    const list = all.filter((x) => (state.filter === 'all' || x.t.category === state.filter) && (!q || (x.t.name + ' ' + (x.t.notes || '')).toLowerCase().includes(q))).sort(sortUrgency);
+    const list = all.filter((x) => (state.filter === 'all' || (state.filter === 'home' ? x.t.category === 'home' : vehicleOf(x.t) === state.filter)) && (!q || (x.t.name + ' ' + (x.t.notes || '')).toLowerCase().includes(q))).sort(sortUrgency);
     app.innerHTML = `${off}<p style="margin:4px 0 10px">Hi ${esc(state.me)}! ✨</p>
       <div class="summary"><div class="card"><b style="color:var(--over)">${cnt('over')}</b>${CHIP.over[1]} Overdue</div>
       <div class="card"><b style="color:var(--soon)">${cnt('soon')}</b>${CHIP.soon[1]} Due soon</div>
       <div class="card"><b style="color:var(--ok)">${cnt('ok')}</b>${CHIP.ok[1]} OK</div></div>
-      <div class="filters">${['all', 'home', 'car'].map((f) => `<button data-f="${f}" class="${state.filter === f ? 'on' : ''}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}
+      <div class="filters">${[['all', 'All'], ['home', 'Home'], ...VEHICLES.map((v) => [v, '🚗 ' + v])].map(([f, l]) => `<button data-f="${f}" class="${state.filter === f ? 'on' : ''}">${esc(l)}</button>`).join('')}
         <button class="btn gold" id="add" style="margin-left:auto">＋ Add</button></div>
       <input id="q" type="search" placeholder="Search tasks…" value="${esc(state.q)}" aria-label="Search">
       ${list.map(taskCard).join('') || '<p class="meta">No tasks here yet.</p>'}`;
@@ -383,14 +389,14 @@ function render() {
     app.querySelectorAll('.task').forEach((c) => c.onclick = () => openTask(c.dataset.id));
   } else {
     const th = LS.get('theme', 'system');
-    app.innerHTML = `${off}<div class="card"><h3>🚗 Current odometer</h3><div class="row"><input id="odo" type="number" inputmode="numeric" value="${esc(state.settings.odometer || '')}" placeholder="e.g. 42000"><button class="btn" id="saveOdo" style="flex:0">Save</button></div></div>
+    app.innerHTML = `${off}${VEHICLES.map((v) => `<div class="card"><h3>🚗 ${v} odometer</h3><div class="row"><input id="odo_${v}" type="number" inputmode="numeric" value="${esc(odometerFor(state.settings, v) ?? '')}" placeholder="e.g. 42000"><button class="btn" data-odo="${v}" style="flex:0">Save</button></div></div>`).join('')}
       <div class="card"><h3>🌙 Theme</h3><select id="theme"><option value="system">Follow system</option><option value="light">Light</option><option value="dark">Dark (starry night)</option></select></div>
       <div class="card"><h3>📅 Calendar</h3><button class="btn ghost" id="icsAll" style="width:100%">Export all upcoming to .ics</button></div>
       <div class="card"><h3>💾 Data</h3><button class="btn ghost" id="json" style="width:100%">Export JSON backup</button></div>
       <div class="card"><p class="meta">Signed in as <b>${esc(state.me)}</b></p><button class="btn danger" id="out" style="width:100%">Sign out</button></div>`;
     $('#theme').value = th;
     $('#theme').onchange = (e) => { LS.set('theme', e.target.value); applyTheme(); };
-    $('#saveOdo').onclick = () => { const v = parseInt($('#odo').value, 10); if (v >= 0) write('upsert', 'maint_settings', { key: 'odometer', value: String(v) }); };
+    app.querySelectorAll('[data-odo]').forEach((b) => b.onclick = () => { const veh = b.dataset.odo, v = parseInt($('#odo_' + veh).value, 10); if (v >= 0) write('upsert', 'maint_settings', { key: 'odometer_' + veh.toLowerCase(), value: String(v) }); });
     $('#icsAll').onclick = () => { const end = addMonths(new Date(), 12); download('maintenance.ics', buildICS(decorated().filter((x) => x.s.due && x.s.due <= end).map((x) => ({ task: x.t, due: x.s.due }))), 'text/calendar'); };
     $('#json').onclick = () => download('maintenance-backup.json', JSON.stringify({ exported: new Date().toISOString(), tasks: state.tasks, settings: state.settings }, null, 2), 'application/json');
     $('#out').onclick = async () => { await sb.auth.signOut(); };
@@ -411,7 +417,7 @@ async function openTask(id, refresh) {
   const t = state.tasks.find((x) => x.id === id); if (!t) return closeSheet();
   if (refresh && openTaskId !== id) return;
   openTaskId = id;
-  const s = computeStatus(t, parseDate(todayISO()), odometer());
+  const s = computeStatus(t, parseDate(todayISO()), odometer(t));
   const draw = (hist) => {
     if (openTaskId !== id) return;
     sheet(`<div class="row" style="align-items:center"><div style="flex:0">${t.category === 'car' ? SVG.car(48) : SVG.castle(48)}</div><h2 style="margin:0">${esc(t.name)}</h2><button class="btn ghost" id="x" style="flex:0" aria-label="Close">✕</button></div>
@@ -419,7 +425,7 @@ async function openTask(id, refresh) {
       <p class="meta">Added by ${esc(t.created_by || '—')}${t.updated_by ? ' · Updated by ' + esc(t.updated_by) : ''}</p>
       <div class="card"><h3>✨ Log completion</h3>
         <label>Date</label><input id="cdate" type="date" value="${todayISO()}">
-        ${t.category === 'car' ? `<label>Odometer (mi)</label><input id="codo" type="number" inputmode="numeric" value="${esc(state.settings.odometer || '')}">` : ''}
+        ${t.category === 'car' ? `<label>Odometer (mi)</label><input id="codo" type="number" inputmode="numeric" value="${esc(odometer(t) ?? '')}">` : ''}
         <label>Notes</label><input id="cnotes" placeholder="Optional">
         <button class="btn gold" id="log" style="width:100%;margin-top:10px">Mark done</button></div>
       <div class="row">${s.due ? `<a class="btn ghost" style="text-align:center;text-decoration:none;padding-top:12px" target="_blank" rel="noopener" href="${esc(googleCalUrl(t, s.due))}">Google Calendar</a><button class="btn ghost" id="ics">Download .ics</button>` : ''}</div>
@@ -445,7 +451,8 @@ async function logCompletion(t, ev) {
   const upd = { id: t.id, updated_by: state.me };
   if (!t.last_done || done_on >= t.last_done) { upd.last_done = done_on; if (odo != null) upd.last_done_miles = odo; }
   await write('upsert', 'maint_tasks', { ...t, ...upd });
-  if (odo != null && (odometer() == null || odo > odometer())) await write('upsert', 'maint_settings', { key: 'odometer', value: String(odo) });
+  const veh = vehicleOf(t);
+  if (odo != null && veh && (odometer(t) == null || odo > odometer(t))) await write('upsert', 'maint_settings', { key: 'odometer_' + veh.toLowerCase(), value: String(odo) });
   sparkle(ev);
   openTask(t.id);
 }
@@ -461,8 +468,9 @@ function sparkle(ev) {
 function openForm(t) {
   const v = t || { name: '', category: 'home', interval_value: 6, interval_unit: 'months', notes: '' };
   sheet(`<h2>${t ? 'Edit task' : 'New task ✨'}</h2>
-    <label>Name</label><input id="fname" value="${esc(v.name)}" required>
     <label>Category</label><select id="fcat"><option value="home">🏰 Home</option><option value="car">🚗 Car</option></select>
+    <div id="vehwrap"><label>Vehicle</label><select id="fveh">${VEHICLES.map((x) => `<option>${x}</option>`).join('')}</select></div>
+    <label>Name</label><input id="fname" value="${esc(stripVehicle(v.name))}" required>
     <div class="row"><div><label>Every</label><input id="fval" type="number" min="1" step="any" value="${esc(v.interval_value ?? '')}"></div>
       <div><label>Unit</label><select id="funit"><option>days</option><option>weeks</option><option>months</option><option>miles</option></select></div></div>
     <label>…or every (miles, optional)</label><input id="falt" type="number" inputmode="numeric" value="${esc(v.alt_interval_miles ?? '')}">
@@ -472,9 +480,12 @@ function openForm(t) {
     <label>Notes</label><textarea id="fnotes" rows="3">${esc(v.notes || '')}</textarea>
     <div class="row" style="margin-top:12px"><button class="btn ghost" id="cancel">Cancel</button><button class="btn gold" id="save">Save</button></div>`);
   $('#fcat').value = v.category; $('#funit').value = v.interval_unit || 'months';
+  $('#fveh').value = vehicleOf(v) || VEHICLES[0];
+  const syncVeh = () => { $('#vehwrap').hidden = $('#fcat').value !== 'car'; }; syncVeh(); $('#fcat').onchange = syncVeh;
   $('#cancel').onclick = () => t ? openTask(t.id) : closeSheet();
   $('#save').onclick = async () => {
-    const name = $('#fname').value.trim(); if (!name) return alert('Please enter a name');
+    const base = stripVehicle($('#fname').value.trim()); if (!base) return alert('Please enter a name');
+    const name = $('#fcat').value === 'car' ? `${$('#fveh').value}: ${base}` : base;
     const num = (id) => $(id).value === '' ? null : Number($(id).value);
     const row = { ...(t || { id: crypto.randomUUID(), created_by: state.me }), name, category: $('#fcat').value, interval_value: num('#fval'), interval_unit: $('#funit').value,
       alt_interval_miles: num('#falt'), last_done: $('#flast').value || null, last_done_miles: num('#flastmi'), first_due: $('#ffirst').value || null,

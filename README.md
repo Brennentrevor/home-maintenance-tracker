@@ -26,3 +26,9 @@ Open the URL in **Safari** → Share → **Add to Home Screen** → Add.
 - PIN login is light security (a 3–4 digit PIN plus a 30 s client-side lockout after 5 misses). Don't store anything sensitive here.
 - `calendar_event_id` is reserved for an external Google Calendar sync; the app shows a 📅 icon when it's set.
 - To change the PIN, update that user's password in Supabase to `homemaint-<newPIN>`.
+
+## Vehicles (Kia & Hyundai)
+- No schema change: a car task's vehicle is its name prefix, `Kia: ` or `Hyundai: ` (see `VEHICLES` in index.html). The Add/Edit form's Vehicle picker manages the prefix.
+- Dashboard filter chips: All / Home / Kia / Hyundai; car cards show a vehicle badge.
+- Each vehicle has its own odometer in Settings (`maint_settings` keys `odometer_kia`, `odometer_hyundai`; old `odometer` key is a fallback). Mileage-based due status and the log-completion odometer prefill use that vehicle's odometer.
+- To add a car: add it to `VEHICLES`, then add tasks prefixed with its name.

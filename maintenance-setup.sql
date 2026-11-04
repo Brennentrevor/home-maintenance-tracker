@@ -105,9 +105,9 @@ insert into public.maint_tasks (name, category, interval_value, interval_unit, a
 select * from (values
   ('Furnace filter / vent cleaning','home',3,'months',null::int,current_date - 5,'Replace filter; vacuum supply & return vents.'),
   ('Roborock robot vacuum clean-out / maintenance','home',2,'weeks',null,current_date + 3,'Empty bin, wash filter, clean brushes & sensors, replace parts as worn.'),
-  ('Car oil change','car',6,'months',5000,current_date + 20,'Synthetic: 5,000–7,500 mi.'),
-  ('Windshield wipers','car',6,'months',null,current_date + 45,'Replace every 6–12 months.'),
-  ('Tire rotation / pressure check','car',6,'months',null,current_date - 2,'Check pressure monthly too (door-jamb sticker PSI).'),
+  ('Kia: Oil change','car',6,'months',5000,current_date + 20,'Synthetic: 5,000–7,500 mi.'),
+  ('Kia: Windshield wipers','car',6,'months',null,current_date + 45,'Replace every 6–12 months.'),
+  ('Kia: Tire rotation / pressure check','car',6,'months',null,current_date - 2,'Check pressure monthly too (door-jamb sticker PSI).'),
   ('HVAC service','home',12,'months',null,current_date + 60,'Annual professional tune-up before cooling/heating season.'),
   ('Smoke & CO detector batteries','home',12,'months',null,current_date + 10,'Test every alarm after replacing.'),
   ('Gutter cleaning','home',6,'months',null,current_date + 25,'Twice yearly — spring and fall.'),
@@ -115,10 +115,10 @@ select * from (values
   ('Dryer vent cleaning','home',12,'months',null,current_date + 120,'Clean duct to exterior; fire safety.'),
   ('Test sump pump / GFCI outlets','home',6,'months',null,current_date + 7,'Pour water in pit; press TEST/RESET on GFCIs.'),
   ('Replace fridge water filter','home',6,'months',null,current_date + 75,null),
-  ('Car battery & terminals check','car',12,'months',null,current_date + 150,'Clean corrosion; test before winter.'),
-  ('Cabin air filter','car',12,'months',null,current_date + 100,null),
-  ('Engine air filter','car',12,'months',null,current_date + 180,null),
-  ('Brake inspection','car',12,'months',null,current_date + 200,'Pads, rotors, fluid.'),
+  ('Kia: Battery & terminals check','car',12,'months',null,current_date + 150,'Clean corrosion; test before winter.'),
+  ('Kia: Cabin air filter','car',12,'months',null,current_date + 100,null),
+  ('Kia: Engine air filter','car',12,'months',null,current_date + 180,null),
+  ('Kia: Brake inspection','car',12,'months',null,current_date + 200,'Pads, rotors, fluid.'),
   ('Check/refresh fire extinguisher','home',12,'months',null,current_date + 40,'Gauge in green; shake/invert dry-chem units.'),
   ('Exterior inspection (roof, siding, caulk)','home',12,'months',null,current_date + 160,'Also pressure-wash / seal deck or driveway as needed.')
 ) as v(name, category, interval_value, interval_unit, alt_interval_miles, first_due, notes)
@@ -138,3 +138,11 @@ insert into public.maint_members (user_id, display_name)
 select id, initcap(split_part(email,'@',1)) from auth.users
 where email in ('brennen@homemaint.example','hope@homemaint.example')
 on conflict do nothing;
+
+-- Vehicles: there is no vehicle column. A car task belongs to a vehicle by its name prefix
+-- ("Kia: ..." or "Hyundai: ..."). Seed above lists Kia rows; duplicate them for the Hyundai:
+-- insert into maint_tasks (name,category,interval_value,interval_unit,alt_interval_miles,first_due,notes)
+--   select replace(name,'Kia: ','Hyundai: '),category,interval_value,interval_unit,alt_interval_miles,first_due + 7,notes
+--   from maint_tasks where name like 'Kia: %';
+-- Per-vehicle odometers live in maint_settings keys odometer_kia / odometer_hyundai
+-- (legacy key 'odometer' is used as a fallback).

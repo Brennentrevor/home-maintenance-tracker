@@ -1,6 +1,6 @@
 // Service worker: cache-first app shell, stale-while-revalidate for the supabase-js CDN + Google Fonts,
 // never caches Supabase API / other cross-origin requests.
-const CACHE_NAME = 'maint-v1';
+const CACHE_NAME = 'maint-v2';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 const SWR_PREFIXES = ['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'https://fonts.googleapis.com/', 'https://fonts.gstatic.com/'];
 

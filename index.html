@@ -38,6 +38,11 @@ button{font-size:1rem;min-height:44px;border-radius:14px;border:0;cursor:pointer
 .btn{background:var(--royal);color:#fff;padding:10px 18px;font-weight:600}
 .btn.gold{background:var(--gold);color:#14224a}
 .btn.ghost{background:transparent;color:var(--accent);border:2px solid var(--border)}
+.fab{position:fixed;right:18px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:20;border-radius:999px;padding:14px 20px;font-size:17px;box-shadow:0 6px 18px rgba(20,34,74,.35)}
+.sugg-btn{width:100%;margin:8px 0 12px;font-size:16px}
+.sugg-item{display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-bottom:1px solid var(--border)}
+.sugg-item input{width:22px;height:22px;flex:0 0 22px;margin-top:2px}
+.sugg-item.done{opacity:.55}
 .btn.danger{background:var(--red);color:#fff}
 input,select,textarea{width:100%;font:inherit;padding:12px;border-radius:12px;border:2px solid var(--border);background:var(--card);color:var(--text);min-height:44px}
 label{display:block;font-weight:700;margin:10px 0 4px;font-size:.92rem}
@@ -98,7 +103,9 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--ca
 <nav class="tabs" id="tabs" hidden></nav>
 <div id="sheet"></div>
 
+<script src="catalog.js"></script>
 <script>
+const APP_VERSION = 'v3';
 'use strict';
 // ====== CONFIG (fill in after creating the Supabase project) ======
 const SUPABASE_URL='https://evgpnpqtnemlbnygpbxs.supabase.co';
@@ -233,7 +240,25 @@ const state = { tasks: LS.get('tasks', []), settings: LS.get('settings', {}), co
 const configured = !SUPABASE_URL.startsWith('YOUR_') && !SUPABASE_ANON_KEY.startsWith('YOUR_');
 let sb = null;
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then((reg) => reg.update().catch(() => {})).catch(() => {});
+  // When a new service worker takes over, reload once to pick up the new app (guarded against loops).
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || sessionStorage.getItem('maint:reloaded')) return;
+    sessionStorage.setItem('maint:reloaded', '1'); location.reload();
+  });
+}
+async function hardRefresh() {
+  const pending = LS.get('queue', []).length;
+  if (pending && !confirm(`You have ${pending} unsynced change(s). They will be kept and synced after refresh. Continue?`)) return;
+  try { if ('serviceWorker' in navigator) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch {}
+  try { for (const k of await caches.keys()) await caches.delete(k); } catch {}
+  localStorage.removeItem('maint:tasks'); localStorage.removeItem('maint:settings');
+  if (!pending) localStorage.removeItem('maint:queue');
+  sessionStorage.removeItem('maint:reloaded');
+  location.replace(location.pathname + '?r=' + Date.now());
+}
 
 function setLive(on, text) { const el = $('#live'); el.className = 'live ' + (on ? 'on' : 'off'); el.textContent = text || (on ? 'Live' : 'Offline'); }
 
@@ -372,12 +397,14 @@ function render() {
       <div class="card"><b style="color:var(--soon)">${cnt('soon')}</b>${CHIP.soon[1]} Due soon</div>
       <div class="card"><b style="color:var(--ok)">${cnt('ok')}</b>${CHIP.ok[1]} OK</div></div>
       <div class="filters">${[['all', 'All'], ['home', 'Home'], ...VEHICLES.map((v) => [v, '🚗 ' + v])].map(([f, l]) => `<button data-f="${f}" class="${state.filter === f ? 'on' : ''}">${esc(l)}</button>`).join('')}
-        <button class="btn gold" id="add" style="margin-left:auto">＋ Add</button></div>
+        </div>
       <input id="q" type="search" placeholder="Search tasks…" value="${esc(state.q)}" aria-label="Search">
-      ${list.map(taskCard).join('') || '<p class="meta">No tasks here yet.</p>'}`;
+      <button class="btn gold sugg-btn" id="sugg">✨ Suggested tasks${missingCount() ? ` (${missingCount()} not tracked yet)` : ''}</button>
+      ${list.map(taskCard).join('') || `<div class="card" style="text-align:center"><p>No tasks here yet.</p><button class="btn gold" id="sugg2">✨ Add suggested tasks</button></div>`}
+      <button class="btn gold fab" id="fab" aria-label="Add custom task">＋ Add task</button>`;
+    $('#sugg').onclick = () => openSuggest(); if ($('#sugg2')) $('#sugg2').onclick = () => openSuggest(); $('#fab').onclick = () => openForm(null);
     app.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { state.filter = b.dataset.f; render(); });
     const qi = $('#q'); qi.oninput = () => { state.q = qi.value; const pos = qi.selectionStart; render(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); };
-    $('#add').onclick = () => openForm(null);
     app.querySelectorAll('.task').forEach((c) => { c.onclick = () => openTask(c.dataset.id); c.onkeydown = (e) => { if (e.key === 'Enter') openTask(c.dataset.id); }; });
   } else if (state.tab === 'cal') {
     const today = parseDate(todayISO()), end = addMonths(today, 12);
@@ -393,12 +420,14 @@ function render() {
       <div class="card"><h3>🌙 Theme</h3><select id="theme"><option value="system">Follow system</option><option value="light">Light</option><option value="dark">Dark (starry night)</option></select></div>
       <div class="card"><h3>📅 Calendar</h3><button class="btn ghost" id="icsAll" style="width:100%">Export all upcoming to .ics</button></div>
       <div class="card"><h3>💾 Data</h3><button class="btn ghost" id="json" style="width:100%">Export JSON backup</button></div>
+      <div class="card"><h3>✨ App</h3><p class="meta">Version <b>${APP_VERSION}</b> · ${state.tasks.length} tasks</p><button class="btn ghost" id="sugg3" style="width:100%;margin-bottom:8px">✨ Suggested tasks</button><button class="btn ghost" id="hard" style="width:100%">🔄 Refresh app / clear cache</button></div>
       <div class="card"><p class="meta">Signed in as <b>${esc(state.me)}</b></p><button class="btn danger" id="out" style="width:100%">Sign out</button></div>`;
     $('#theme').value = th;
     $('#theme').onchange = (e) => { LS.set('theme', e.target.value); applyTheme(); };
     app.querySelectorAll('[data-odo]').forEach((b) => b.onclick = () => { const veh = b.dataset.odo, v = parseInt($('#odo_' + veh).value, 10); if (v >= 0) write('upsert', 'maint_settings', { key: 'odometer_' + veh.toLowerCase(), value: String(v) }); });
     $('#icsAll').onclick = () => { const end = addMonths(new Date(), 12); download('maintenance.ics', buildICS(decorated().filter((x) => x.s.due && x.s.due <= end).map((x) => ({ task: x.t, due: x.s.due }))), 'text/calendar'); };
     $('#json').onclick = () => download('maintenance-backup.json', JSON.stringify({ exported: new Date().toISOString(), tasks: state.tasks, settings: state.settings }, null, 2), 'application/json');
+    $('#hard').onclick = hardRefresh; $('#sugg3').onclick = () => openSuggest();
     $('#out').onclick = async () => { await sb.auth.signOut(); };
   }
 }
@@ -497,6 +526,27 @@ function openForm(t) {
   };
 }
 
+// ====== Suggested tasks ======
+function missingCount() { return catalogSuggestions(state.tasks, VEHICLES, parseDate(todayISO())).filter((x) => !x.tracked).length; }
+function openSuggest() {
+  const items = catalogSuggestions(state.tasks, VEHICLES, parseDate(todayISO()));
+  const groups = ['Home', ...VEHICLES];
+  sheet(`<div class="row" style="align-items:center"><h2 style="margin:0;flex:1">✨ Suggested tasks</h2><button class="btn ghost" id="x" style="flex:0" aria-label="Close">✕</button></div>
+    <p class="meta">Checked items will be added with a suggested schedule. You can edit any of them later.</p>
+    ${groups.map((g) => `<h3>${g === 'Home' ? SVG.castle(22) + ' Home' : SVG.car(22) + ' ' + esc(g)}</h3>` + items.map((x, i) => x.group !== g ? '' : `<label class="sugg-item ${x.tracked ? 'done' : ''}"><input type="checkbox" data-i="${i}" ${x.tracked ? 'checked disabled' : 'checked'}><span><b>${esc(x.group === 'Home' ? x.name : stripVehicle(x.name))}</b>${x.tracked ? ' <span class="meta">✓ tracking</span>' : ''}<br><span class="meta">${esc(x.notes.replace('Suggested window: ', ''))}${x.tracked ? '' : ' · first due ' + fmtNice(x.first_due)}</span></span></label>`).join('')).join('')}
+    <div class="row" style="margin-top:12px;position:sticky;bottom:0;background:var(--bg);padding-top:8px"><button class="btn ghost" id="addAllMissing">Add all missing</button><button class="btn gold" id="addSel">Add selected</button></div>`);
+  $('#x').onclick = closeSheet;
+  const add = async (list) => {
+    if (!list.length) return alert('Everything selected is already tracked ✨');
+    closeSheet();
+    for (const x of list) await write('insert', 'maint_tasks', { id: crypto.randomUUID(), name: x.name, category: x.category, interval_value: x.interval_value, interval_unit: x.interval_unit,
+      alt_interval_miles: x.alt_interval_miles, first_due: x.first_due, notes: x.notes, created_by: state.me, updated_by: state.me });
+    alert(`Added ${list.length} task(s) ✨`);
+  };
+  $('#addSel').onclick = () => add([...document.querySelectorAll('.sugg-item input:checked:not(:disabled)')].map((c) => items[c.dataset.i]));
+  $('#addAllMissing').onclick = () => add(items.filter((x) => !x.tracked));
+}
+
 // ====== Boot ======
 async function onSession(session) {
   if (!session) { state.me = null; closeSheet(); renderLogin(); setLive(false, 'Signed out'); return; }
@@ -518,6 +568,7 @@ async function boot() {
   await onSession(data.session);
 }
 addEventListener('online', async () => { if (sb && state.me) { await flushQueue(); subscribe(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sb && state.me && navigator.onLine) loadAll(); });
 addEventListener('offline', () => { setLive(false); render(); });
 boot();
 </script>

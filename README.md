@@ -32,3 +32,10 @@ Open the URL in **Safari** → Share → **Add to Home Screen** → Add.
 - Dashboard filter chips: All / Home / Kia / Hyundai; car cards show a vehicle badge.
 - Each vehicle has its own odometer in Settings (`maint_settings` keys `odometer_kia`, `odometer_hyundai`; old `odometer` key is a fallback). Mileage-based due status and the log-completion odometer prefill use that vehicle's odometer.
 - To add a car: add it to `VEHICLES`, then add tasks prefixed with its name.
+
+## v3 updates
+- **✨ Suggested tasks**: built-in library in `catalog.js` (home items + per-vehicle car items for Kia & Hyundai) with suggested windows. Open it from the dashboard or Settings; already-tracked items are shown checked/disabled; "Add selected" / "Add all missing" insert tasks with staggered first-due dates.
+- **＋ Add task** floating button for fully custom tasks.
+- **Reliable updates**: service worker `maint-v3` is network-first for the app (3s timeout, cached copy offline) and auto-reloads once when a new version activates. The task list is always re-fetched from Supabase on load and when the app returns to the foreground.
+- **Settings → Refresh app / clear cache**: unregisters the service worker, clears caches and the local task cache (keeps unsynced changes), then reloads. Settings also shows the app version.
+- To add a catalog item, append to `CATALOG` in `catalog.js`; dedupe is by name (car items are prefixed `Kia: ` / `Hyundai: `).

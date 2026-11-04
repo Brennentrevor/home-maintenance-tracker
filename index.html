@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Our Magical Maintenance</title>
+<meta name="theme-color" content="#14224a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Magic Maint">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --sky:#5b9bd5;--royal:#2b4c8c;--night:#14224a;--gold:#f2c14e;--red:#c8433b;--cream:#fff8e7;
+  --bg:var(--cream);--card:#ffffff;--text:#1d2747;--muted:#4f5b7a;--border:#ecd28f;--accent:var(--royal);
+  --ok:#1f7a4a;--okbg:#e2f5ea;--soon:#8a5a00;--soonbg:#fff1c9;--over:#a52a22;--overbg:#fde3e0;
+  --hfont:'Fredoka',ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+  --bfont:'Nunito',ui-rounded,system-ui,-apple-system,sans-serif;
+}
+:root[data-theme=dark]{
+  --bg:var(--night);--card:#1c2d5c;--text:#f5efdc;--muted:#c3cbe3;--border:#8a7330;--accent:var(--gold);
+  --ok:#8fe0b0;--okbg:#17402f;--soon:#ffd979;--soonbg:#4a3a10;--over:#ffaaa2;--overbg:#4f1c1a;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme=light]){
+  --bg:var(--night);--card:#1c2d5c;--text:#f5efdc;--muted:#c3cbe3;--border:#8a7330;--accent:var(--gold);
+  --ok:#8fe0b0;--okbg:#17402f;--soon:#ffd979;--soonbg:#4a3a10;--over:#ffaaa2;--overbg:#4f1c1a;}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--bfont);font-size:16px;-webkit-tap-highlight-color:transparent}
+h1,h2,h3,button,.chip,.tab{font-family:var(--hfont)}
+button{font-size:1rem;min-height:44px;border-radius:14px;border:0;cursor:pointer}
+.btn{background:var(--royal);color:#fff;padding:10px 18px;font-weight:600}
+.btn.gold{background:var(--gold);color:#14224a}
+.btn.ghost{background:transparent;color:var(--accent);border:2px solid var(--border)}
+.btn.danger{background:var(--red);color:#fff}
+input,select,textarea{width:100%;font:inherit;padding:12px;border-radius:12px;border:2px solid var(--border);background:var(--card);color:var(--text);min-height:44px}
+label{display:block;font-weight:700;margin:10px 0 4px;font-size:.92rem}
+header{position:sticky;top:0;z-index:5;padding:calc(env(safe-area-inset-top) + 10px) 16px 12px;color:#fff;
+  background:radial-gradient(circle at 20% 30%,rgba(255,255,255,.35) 1px,transparent 2px) 0 0/40px 40px,
+  radial-gradient(circle at 70% 60%,rgba(242,193,78,.5) 1px,transparent 2px) 0 0/55px 55px,
+  linear-gradient(160deg,#2b4c8c,#14224a);display:flex;align-items:center;gap:10px}
+header h1{font-size:1.25rem;margin:0;flex:1}
+.live{font-size:.75rem;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.15)}
+.live.on::before{content:'●';color:#7ee2a8;margin-right:4px}
+.live.off::before{content:'●';color:#aaa;margin-right:4px}
+main{padding:12px 14px calc(90px + env(safe-area-inset-bottom));max-width:720px;margin:0 auto}
+nav.tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:2px solid var(--border);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+.tab{flex:1;background:none;color:var(--muted);padding:8px 0;font-size:.85rem;border-radius:0;min-height:56px}
+.tab.active{color:var(--accent);font-weight:600}
+.tab svg{display:block;margin:0 auto 2px}
+.card{background:var(--card);border:2px solid var(--border);border-radius:20px;padding:14px;margin:10px 0;box-shadow:0 2px 8px rgba(20,34,74,.08)}
+.task{display:flex;gap:12px;cursor:pointer}
+.task .ill{flex:0 0 44px}
+.task h3{margin:0 0 4px;font-size:1.05rem}
+.meta{color:var(--muted);font-size:.88rem;line-height:1.4}
+.badge{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:99px;background:rgba(91,155,213,.18);color:var(--accent);font-weight:700;margin-right:4px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:.8rem;padding:4px 10px;border-radius:99px;font-weight:600}
+.chip.ok{background:var(--okbg);color:var(--ok)}.chip.soon{background:var(--soonbg);color:var(--soon)}.chip.over{background:var(--overbg);color:var(--over)}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.summary .card{text-align:center;margin:0;padding:10px}
+.summary b{display:block;font-family:var(--hfont);font-size:1.6rem}
+.filters{display:flex;gap:8px;margin:12px 0;overflow-x:auto}
+.filters button{background:var(--card);color:var(--text);border:2px solid var(--border);padding:6px 16px}
+.filters button.on{background:var(--royal);color:#fff;border-color:var(--royal)}
+.banner{background:var(--soonbg);color:var(--soon);padding:10px 14px;border-radius:14px;margin:8px 0;font-weight:700}
+.sheet-bg{position:fixed;inset:0;background:rgba(10,16,40,.55);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:720px;max-height:92vh;overflow:auto;border-radius:24px 24px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom));border-top:3px solid var(--gold)}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}
+.login{max-width:380px;margin:30px auto;text-align:center}
+.who{display:flex;gap:12px;justify-content:center;margin:16px 0}
+.who button{flex:1;padding:18px;font-size:1.2rem;background:var(--card);color:var(--text);border:2px solid var(--border)}
+.who button.on{border-color:var(--gold);background:var(--royal);color:#fff}
+.dots{font-size:2rem;letter-spacing:10px;min-height:48px;color:var(--accent)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:300px;margin:0 auto}
+.pad button{font-size:1.5rem;min-height:64px;background:var(--card);color:var(--text);border:2px solid var(--border)}
+.err{color:var(--over);font-weight:700;min-height:24px}
+.month h2{font-size:1.1rem;margin:18px 0 6px;color:var(--accent)}
+.sparkle{position:fixed;pointer-events:none;z-index:50;font-size:22px;animation:fly 1s ease-out forwards}
+@keyframes fly{to{transform:translate(var(--dx),var(--dy)) rotate(180deg);opacity:0}}
+@media (prefers-reduced-motion: reduce){.sparkle{display:none}}
+.hist li{margin:4px 0}
+.setup{max-width:520px;margin:40px auto;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <span id="logo"></span>
+  <h1>Our Magical Maintenance</h1>
+  <span id="live" class="live off">Offline</span>
+</header>
+<main id="app"></main>
+<nav class="tabs" id="tabs" hidden></nav>
+<div id="sheet"></div>
+
+<script>
+'use strict';
+// ====== CONFIG (fill in after creating the Supabase project) ======
+const SUPABASE_URL='https://evgpnpqtnemlbnygpbxs.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2Z3BucHF0bmVtbGJueWdwYnhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMjcyMzMsImV4cCI6MjEwODkwMzIzM30.IskAOHWOcOTADboLGe_HlA-S8h4z0PSa8eHhde1sSX4';
+const USERS = ['Brennen', 'Hope'];        // login buttons; PINs are NOT stored here
+const EMAIL_DOMAIN = 'homemaint.example';
+
+// ====== LOGIC-START (pure functions; unit-tested in node) ======
+/** Parse 'YYYY-MM-DD' to a local Date at midnight. */
+function parseDate(s) { if (!s) return null; const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+/** Format Date to 'YYYY-MM-DD'. */
+function fmtISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function todayISO() { return fmtISO(new Date()); }
+/** Add calendar months, clamping to month end (Jan 31 + 1 month = Feb 28/29). */
+function addMonths(date, n) {
+  const d = new Date(date.getFullYear(), date.getMonth(), 1);
+  d.setMonth(d.getMonth() + n);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(date.getDate(), last));
+  return d;
+}
+function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
+function daysBetween(a, b) { return Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000); }
+/** Interval length in days (approx) — used for the due-soon window. */
+function intervalDays(t) {
+  const v = Number(t.interval_value) || 0;
+  return t.interval_unit === 'days' ? v : t.interval_unit === 'weeks' ? v * 7 : t.interval_unit === 'months' ? v * 30 : Infinity;
+}
+/** Miles interval for a task (primary if unit=miles, else alt). */
+function milesInterval(t) { return t.interval_unit === 'miles' ? Number(t.interval_value) || null : (t.alt_interval_miles || null); }
+/** Next due date (Date or null) for time-based intervals. */
+function nextDueDate(t) {
+  if (t.interval_unit === 'miles') return t.last_done ? null : parseDate(t.first_due);
+  if (!t.last_done) return parseDate(t.first_due);
+  const last = parseDate(t.last_done), v = Number(t.interval_value) || 0;
+  if (t.interval_unit === 'months') return addMonths(last, v);
+  if (t.interval_unit === 'weeks') return addDays(last, v * 7);
+  if (t.interval_unit === 'days') return addDays(last, v);
+  return parseDate(t.first_due);
+}
+const RANK = { ok: 0, soon: 1, over: 2, none: -1 };
+/**
+ * Compute status. today: Date; odometer: number|null.
+ * Returns {due: Date|null, days: int|null, milesLeft: int|null, status: 'ok'|'soon'|'over'|'none'}
+ */
+function computeStatus(t, today, odometer) {
+  const due = nextDueDate(t);
+  let status = 'none', days = null, milesLeft = null;
+  if (due) {
+    days = daysBetween(today, due);
+    const win = intervalDays(t) < 60 ? 14 : 30;
+    status = days < 0 ? 'over' : days <= win ? 'soon' : 'ok';
+  }
+  const mi = milesInterval(t);
+  if (mi && t.last_done_miles != null && odometer != null && odometer !== '') {
+    milesLeft = Number(t.last_done_miles) + mi - Number(odometer);
+    const ms = milesLeft < 0 ? 'over' : milesLeft <= 500 ? 'soon' : 'ok';
+    if (RANK[ms] > RANK[status]) status = ms;
+  }
+  return { due, days, milesLeft, status };
+}
+function intervalLabel(t) {
+  const v = Number(t.interval_value), u = t.interval_unit;
+  if (!v || !u) return 'No interval';
+  const fmt = (n) => Number(n).toLocaleString('en-US');
+  let s = u === 'miles' ? `Every ${fmt(v)} mi` : `Every ${v === 1 ? '' : v + ' '}${v === 1 ? u.replace(/s$/, '') : u}`;
+  if (u !== 'miles' && t.alt_interval_miles) s += ` or ${fmt(t.alt_interval_miles)} mi`;
+  return s;
+}
+function relText(days) {
+  if (days == null) return '';
+  if (days === 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  if (days === -1) return '1 day overdue';
+  return days > 0 ? `in ${days} days` : `${-days} days overdue`;
+}
+/** Build an .ics calendar for tasks: all-day event, alarms 7 days before and on the day. */
+function buildICS(items) {
+  const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  const ymd = (d) => fmtISO(d).replace(/-/g, '');
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Our Magical Maintenance//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  for (const { task, due } of items) {
+    lines.push('BEGIN:VEVENT', `UID:${task.id}-${ymd(due)}@magical-maintenance`, `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${ymd(due)}`, `DTEND;VALUE=DATE:${ymd(addDays(due, 1))}`,
+      `SUMMARY:${esc('🔧 ' + task.name)}`, `DESCRIPTION:${esc(intervalLabel(task) + (task.notes ? '\n' + task.notes : ''))}`,
+      'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(task.name + ' due in 1 week')}`, 'TRIGGER:-P7D', 'END:VALARM',
+      'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(task.name + ' due today')}`, 'TRIGGER;RELATED=START:PT9H', 'END:VALARM',
+      'END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n') + '\r\n';
+}
+function googleCalUrl(task, due) {
+  const ymd = (d) => fmtISO(d).replace(/-/g, '');
+  const p = new URLSearchParams({ action: 'TEMPLATE', text: '🔧 ' + task.name,
+    dates: `${ymd(due)}/${ymd(addDays(due, 1))}`, details: intervalLabel(task) + (task.notes ? '\n' + task.notes : '') + '\nReminder: set a 1-week notification.' });
+  return 'https://calendar.google.com/calendar/render?' + p.toString();
+}
+// ====== LOGIC-END ======
+
+// ====== Helpers ======
+const $ = (s) => document.querySelector(s);
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function fmtNice(iso) { const d = typeof iso === 'string' ? parseDate(iso) : iso; return d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'; }
+const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('maint:' + k)) ?? d; } catch { return d; } }, set: (k, v) => localStorage.setItem('maint:' + k, JSON.stringify(v)) };
+
+// ====== Original inline SVG art (no third-party characters/marks) ======
+const SVG = {
+  castle: (s = 40) => `<svg width="${s}" height="${s}" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4v6" stroke="#c8433b" stroke-width="2"/><path d="M24 4l7 2.5-7 2.5z" fill="#c8433b"/><path d="M7 18l4-8 4 8zM33 18l4-8 4 8zM19 16l5-8 5 8z" fill="#2b4c8c"/><rect x="7" y="18" width="8" height="26" fill="#5b9bd5"/><rect x="33" y="18" width="8" height="26" fill="#5b9bd5"/><rect x="19" y="16" width="10" height="28" fill="#5b9bd5"/><rect x="13" y="26" width="22" height="18" fill="#7fb2e3"/><path d="M20 44v-8a4 4 0 018 0v8z" fill="#14224a"/><circle cx="11" cy="24" r="1.5" fill="#f2c14e"/><circle cx="37" cy="24" r="1.5" fill="#f2c14e"/><path d="M42 6l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" fill="#f2c14e"/></svg>`,
+  car: (s = 40) => `<svg width="${s}" height="${s}" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 30l4-10c1-2 3-3 5-3h16c2 0 4 1 5 3l5 10v7H6z" fill="#c8433b"/><path d="M13 20h9v8H10zM26 20h8l3 8H26z" fill="#cfe4f7"/><circle cx="14" cy="37" r="5" fill="#14224a"/><circle cx="14" cy="37" r="2" fill="#f2c14e"/><circle cx="34" cy="37" r="5" fill="#14224a"/><circle cx="34" cy="37" r="2" fill="#f2c14e"/><circle cx="41" cy="31" r="1.6" fill="#f2c14e"/><path d="M40 8l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" fill="#f2c14e"/></svg>`,
+  star: `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" fill="currentColor"/></svg>`,
+  bell: `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M12 9v4l3 2" stroke="currentColor" stroke-width="2.5" fill="none"/><path d="M4 5l3-2M20 5l-3-2" stroke="currentColor" stroke-width="2.5"/></svg>`,
+  flag: `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V3" stroke="currentColor" stroke-width="2.5"/><path d="M5 4h13l-3 4.5 3 4.5H5z" fill="currentColor"/></svg>`,
+  cal: `<svg width="14" height="14" viewBox="0 0 24 24" aria-label="On Google Calendar"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2"/></svg>`,
+};
+const CHIP = { ok: ['ok', SVG.star, 'OK'], soon: ['soon', SVG.bell, 'Due soon'], over: ['over', SVG.flag, 'Overdue'], none: ['ok', SVG.star, 'No date'] };
+$('#logo').innerHTML = SVG.castle(34);
+
+// ====== Theme ======
+function applyTheme() { const t = LS.get('theme', 'system'); if (t === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = t; }
+applyTheme();
+
+// ====== State ======
+const state = { tasks: LS.get('tasks', []), settings: LS.get('settings', {}), completions: {}, tab: 'dash', filter: 'all', q: '', me: null };
+const configured = !SUPABASE_URL.startsWith('YOUR_') && !SUPABASE_ANON_KEY.startsWith('YOUR_');
+let sb = null;
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+function setLive(on, text) { const el = $('#live'); el.className = 'live ' + (on ? 'on' : 'off'); el.textContent = text || (on ? 'Live' : 'Offline'); }
+
+// ====== Setup-needed card ======
+function renderSetup() {
+  $('#app').innerHTML = `<div class="setup card">${SVG.castle(80)}<h2>Almost ready! ✨</h2>
+  <p>Open <b>index.html</b> and set <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> at the top of the script, then run <b>maintenance-setup.sql</b> in the Supabase SQL editor. See README.md.</p></div>`;
+}
+
+// ====== Login ======
+let loginWho = null, pin = '';
+function renderLogin(msg = '') {
+  $('#tabs').hidden = true;
+  const lock = LS.get('lockUntil', 0), locked = Date.now() < lock;
+  $('#app').innerHTML = `<div class="login">${SVG.castle(90)}<h2>Who's signing in?</h2>
+    <div class="who">${USERS.map((u) => `<button data-who="${esc(u)}" class="${loginWho === u ? 'on' : ''}">${esc(u)}</button>`).join('')}</div>
+    ${loginWho ? `<div class="dots" aria-label="PIN entered">${'★'.repeat(pin.length) || '&nbsp;'}</div>
+    <div class="pad">${[1,2,3,4,5,6,7,8,9].map((n) => `<button data-k="${n}">${n}</button>`).join('')}
+      <button data-k="del" aria-label="Delete">⌫</button><button data-k="0">0</button><button data-k="go" class="btn gold" ${locked ? 'disabled' : ''}>Go</button></div>` : ''}
+    <p class="err" role="alert">${esc(locked ? `Too many tries — wait ${Math.ceil((lock - Date.now()) / 1000)}s` : msg)}</p></div>`;
+  $('#app').querySelectorAll('[data-who]').forEach((b) => b.onclick = () => { loginWho = b.dataset.who; pin = ''; renderLogin(); });
+  $('#app').querySelectorAll('[data-k]').forEach((b) => b.onclick = () => {
+    const k = b.dataset.k;
+    if (k === 'del') pin = pin.slice(0, -1); else if (k === 'go') return doLogin(); else if (pin.length < 4) pin += k;
+    renderLogin();
+  });
+  if (locked) setTimeout(() => renderLogin(), 1000);
+}
+async function doLogin() {
+  if (Date.now() < LS.get('lockUntil', 0)) return renderLogin();
+  if (pin.length < 3) return renderLogin('PIN is 3–4 digits');
+  const { error } = await sb.auth.signInWithPassword({ email: `${loginWho.toLowerCase()}@${EMAIL_DOMAIN}`, password: `homemaint-${pin}` });
+  pin = '';
+  if (error) {
+    const n = LS.get('fails', 0) + 1;
+    if (n >= 5) { LS.set('fails', 0); LS.set('lockUntil', Date.now() + 30000); } else LS.set('fails', n);
+    return renderLogin(navigator.onLine ? 'Oops — that PIN didn’t match. Try again!' : 'You’re offline — connect to sign in.');
+  }
+  LS.set('fails', 0);
+}
+
+// ====== Data ======
+async function loadAll() {
+  if (!navigator.onLine) { setLive(false); render(); return; }
+  const [t, s] = await Promise.all([sb.from('maint_tasks').select('*'), sb.from('maint_settings').select('*')]);
+  if (t.error || s.error) { setLive(false, 'Error'); console.error(t.error || s.error); render(); return; }
+  state.tasks = t.data; state.settings = Object.fromEntries(s.data.map((r) => [r.key, r.value]));
+  LS.set('tasks', state.tasks); LS.set('settings', state.settings);
+  render();
+}
+const odometer = () => state.settings.odometer ? Number(state.settings.odometer) : null;
+
+// Offline queue: [{op:'upsert'|'delete'|'insert', table, row|id}]
+function queue(item) { const q = LS.get('queue', []); q.push(item); LS.set('queue', q); }
+async function flushQueue() {
+  const q = LS.get('queue', []); if (!q.length || !navigator.onLine) return;
+  const rest = [];
+  for (const it of q) {
+    let r;
+    if (it.op === 'delete') r = await sb.from(it.table).delete().eq('id', it.id);
+    else if (it.op === 'insert') r = await sb.from(it.table).insert(it.row);
+    else r = await sb.from(it.table).upsert(it.row);
+    if (r.error && !navigator.onLine) rest.push(it); else if (r.error) console.warn('dropped queued op', it, r.error);
+  }
+  LS.set('queue', rest);
+  await loadAll();
+}
+/** Write helper: performs online or queues offline; also updates local state optimistically. */
+async function write(op, table, payload) {
+  if (table === 'maint_tasks') {
+    if (op === 'delete') state.tasks = state.tasks.filter((t) => t.id !== payload);
+    else { const i = state.tasks.findIndex((t) => t.id === payload.id); if (i >= 0) state.tasks[i] = { ...state.tasks[i], ...payload }; else state.tasks.push(payload); }
+    LS.set('tasks', state.tasks);
+  }
+  if (table === 'maint_settings') { state.settings[payload.key] = payload.value; LS.set('settings', state.settings); }
+  render();
+  const item = op === 'delete' ? { op, table, id: payload } : { op, table, row: payload };
+  if (!navigator.onLine) { queue(item); return; }
+  const r = op === 'delete' ? await sb.from(table).delete().eq('id', payload) : op === 'insert' ? await sb.from(table).insert(payload) : await sb.from(table).upsert(payload);
+  if (r.error) { if (!navigator.onLine) queue(item); else alert('Could not save: ' + r.error.message); }
+}
+
+let channel = null;
+function subscribe() {
+  if (channel) sb.removeChannel(channel);
+  channel = sb.channel('maint-live');
+  ['maint_tasks', 'maint_completions', 'maint_settings'].forEach((tb) =>
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: tb }, (p) => onChange(tb, p)));
+  channel.subscribe((status) => setLive(status === 'SUBSCRIBED'));
+}
+function onChange(tb, p) {
+  if (tb === 'maint_tasks') {
+    if (p.eventType === 'DELETE') state.tasks = state.tasks.filter((t) => t.id !== p.old.id);
+    else { const i = state.tasks.findIndex((t) => t.id === p.new.id); if (i >= 0) state.tasks[i] = p.new; else state.tasks.push(p.new); }
+    LS.set('tasks', state.tasks);
+  } else if (tb === 'maint_settings' && p.new) { state.settings[p.new.key] = p.new.value; LS.set('settings', state.settings); }
+  else if (tb === 'maint_completions') { const id = (p.new || p.old)?.task_id; if (id) delete state.completions[id]; }
+  render();
+  if (openTaskId) openTask(openTaskId, true);
+}
+
+// ====== Rendering ======
+function decorated() {
+  const today = parseDate(todayISO()), odo = odometer();
+  return state.tasks.map((t) => ({ t, s: computeStatus(t, today, odo) }));
+}
+function sortUrgency(a, b) {
+  return (RANK[b.s.status] - RANK[a.s.status]) || ((a.s.days ?? 1e9) - (b.s.days ?? 1e9)) || a.t.name.localeCompare(b.t.name);
+}
+function chip(st) { const [c, ic, label] = CHIP[st]; return `<span class="chip ${c}">${ic}${label}</span>`; }
+function taskCard({ t, s }) {
+  const miles = s.milesLeft != null ? ` · ${s.milesLeft < 0 ? Math.abs(s.milesLeft).toLocaleString() + ' mi over' : s.milesLeft.toLocaleString() + ' mi left'}` : '';
+  return `<div class="card task" data-id="${esc(t.id)}" role="button" tabindex="0">
+    <div class="ill">${t.category === 'car' ? SVG.car() : SVG.castle()}</div>
+    <div style="flex:1;min-width:0"><h3>${esc(t.name)} ${t.calendar_event_id ? `<span style="color:var(--accent)">${SVG.cal}</span>` : ''}</h3>
+      <div><span class="badge">${t.category === 'car' ? 'Car' : 'Home'}</span>${chip(s.status)}</div>
+      <div class="meta">${esc(intervalLabel(t))}<br>Last done: ${fmtNice(t.last_done)}${t.last_done_miles != null ? ' @ ' + Number(t.last_done_miles).toLocaleString() + ' mi' : ''}<br>
+      Next due: ${s.due ? fmtNice(s.due) + ' (' + relText(s.days) + ')' : '—'}${esc(miles)}</div>
+      ${t.notes ? `<div class="meta" style="margin-top:4px">📝 ${esc(t.notes)}</div>` : ''}</div></div>`;
+}
+function render() {
+  if (!state.me) return;
+  $('#tabs').hidden = false;
+  $('#tabs').innerHTML = [['dash', 'Dashboard', SVG.castle(24)], ['cal', 'Calendar', SVG.cal.replace(/14/g, '24')], ['set', 'Settings', '⚙️']]
+    .map(([k, l, ic]) => `<button class="tab ${state.tab === k ? 'active' : ''}" data-tab="${k}"><span style="display:block;font-size:20px">${ic}</span>${l}</button>`).join('');
+  $('#tabs').querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; render(); });
+  const off = !navigator.onLine ? `<div class="banner">☁️ Offline — showing saved list. Changes will sync when you're back online.${LS.get('queue', []).length ? ` (${LS.get('queue', []).length} pending)` : ''}</div>` : '';
+  const app = $('#app');
+  if (state.tab === 'dash') {
+    const all = decorated();
+    const cnt = (st) => all.filter((x) => x.s.status === st).length;
+    const q = state.q.toLowerCase();
+    const list = all.filter((x) => (state.filter === 'all' || x.t.category === state.filter) && (!q || (x.t.name + ' ' + (x.t.notes || '')).toLowerCase().includes(q))).sort(sortUrgency);
+    app.innerHTML = `${off}<p style="margin:4px 0 10px">Hi ${esc(state.me)}! ✨</p>
+      <div class="summary"><div class="card"><b style="color:var(--over)">${cnt('over')}</b>${CHIP.over[1]} Overdue</div>
+      <div class="card"><b style="color:var(--soon)">${cnt('soon')}</b>${CHIP.soon[1]} Due soon</div>
+      <div class="card"><b style="color:var(--ok)">${cnt('ok')}</b>${CHIP.ok[1]} OK</div></div>
+      <div class="filters">${['all', 'home', 'car'].map((f) => `<button data-f="${f}" class="${state.filter === f ? 'on' : ''}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}
+        <button class="btn gold" id="add" style="margin-left:auto">＋ Add</button></div>
+      <input id="q" type="search" placeholder="Search tasks…" value="${esc(state.q)}" aria-label="Search">
+      ${list.map(taskCard).join('') || '<p class="meta">No tasks here yet.</p>'}`;
+    app.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { state.filter = b.dataset.f; render(); });
+    const qi = $('#q'); qi.oninput = () => { state.q = qi.value; const pos = qi.selectionStart; render(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); };
+    $('#add').onclick = () => openForm(null);
+    app.querySelectorAll('.task').forEach((c) => { c.onclick = () => openTask(c.dataset.id); c.onkeydown = (e) => { if (e.key === 'Enter') openTask(c.dataset.id); }; });
+  } else if (state.tab === 'cal') {
+    const today = parseDate(todayISO()), end = addMonths(today, 12);
+    const items = decorated().filter((x) => x.s.due && x.s.due <= end).sort((a, b) => a.s.due - b.s.due);
+    const groups = {};
+    items.forEach((x) => { const k = x.s.due < today ? 'Overdue' : x.s.due.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); (groups[k] ||= []).push(x); });
+    app.innerHTML = off + (Object.entries(groups).map(([m, xs]) => `<div class="month"><h2>${m === 'Overdue' ? SVG.flag : SVG.star} ${esc(m)}</h2>
+      ${xs.map(({ t, s }) => `<div class="card task" data-id="${esc(t.id)}"><div class="ill">${t.category === 'car' ? SVG.car(32) : SVG.castle(32)}</div><div style="flex:1"><b>${esc(t.name)}</b><div class="meta">${fmtNice(s.due)} · ${relText(s.days)}</div></div>${chip(s.status)}</div>`).join('')}</div>`).join('') || '<p class="meta">Nothing due in the next 12 months.</p>');
+    app.querySelectorAll('.task').forEach((c) => c.onclick = () => openTask(c.dataset.id));
+  } else {
+    const th = LS.get('theme', 'system');
+    app.innerHTML = `${off}<div class="card"><h3>🚗 Current odometer</h3><div class="row"><input id="odo" type="number" inputmode="numeric" value="${esc(state.settings.odometer || '')}" placeholder="e.g. 42000"><button class="btn" id="saveOdo" style="flex:0">Save</button></div></div>
+      <div class="card"><h3>🌙 Theme</h3><select id="theme"><option value="system">Follow system</option><option value="light">Light</option><option value="dark">Dark (starry night)</option></select></div>
+      <div class="card"><h3>📅 Calendar</h3><button class="btn ghost" id="icsAll" style="width:100%">Export all upcoming to .ics</button></div>
+      <div class="card"><h3>💾 Data</h3><button class="btn ghost" id="json" style="width:100%">Export JSON backup</button></div>
+      <div class="card"><p class="meta">Signed in as <b>${esc(state.me)}</b></p><button class="btn danger" id="out" style="width:100%">Sign out</button></div>`;
+    $('#theme').value = th;
+    $('#theme').onchange = (e) => { LS.set('theme', e.target.value); applyTheme(); };
+    $('#saveOdo').onclick = () => { const v = parseInt($('#odo').value, 10); if (v >= 0) write('upsert', 'maint_settings', { key: 'odometer', value: String(v) }); };
+    $('#icsAll').onclick = () => { const end = addMonths(new Date(), 12); download('maintenance.ics', buildICS(decorated().filter((x) => x.s.due && x.s.due <= end).map((x) => ({ task: x.t, due: x.s.due }))), 'text/calendar'); };
+    $('#json').onclick = () => download('maintenance-backup.json', JSON.stringify({ exported: new Date().toISOString(), tasks: state.tasks, settings: state.settings }, null, 2), 'application/json');
+    $('#out').onclick = async () => { await sb.auth.signOut(); };
+  }
+}
+function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+
+// ====== Sheets ======
+let openTaskId = null;
+function closeSheet() { $('#sheet').innerHTML = ''; openTaskId = null; }
+function sheet(html) { $('#sheet').innerHTML = `<div class="sheet-bg"><div class="sheet" role="dialog">${html}</div></div>`; $('.sheet-bg').onclick = (e) => { if (e.target.classList.contains('sheet-bg')) closeSheet(); }; }
+async function loadHistory(id) {
+  if (state.completions[id] || !navigator.onLine) return state.completions[id] || [];
+  const { data } = await sb.from('maint_completions').select('*').eq('task_id', id).order('done_on', { ascending: false }).limit(50);
+  return (state.completions[id] = data || []);
+}
+async function openTask(id, refresh) {
+  const t = state.tasks.find((x) => x.id === id); if (!t) return closeSheet();
+  if (refresh && openTaskId !== id) return;
+  openTaskId = id;
+  const s = computeStatus(t, parseDate(todayISO()), odometer());
+  const draw = (hist) => {
+    if (openTaskId !== id) return;
+    sheet(`<div class="row" style="align-items:center"><div style="flex:0">${t.category === 'car' ? SVG.car(48) : SVG.castle(48)}</div><h2 style="margin:0">${esc(t.name)}</h2><button class="btn ghost" id="x" style="flex:0" aria-label="Close">✕</button></div>
+      ${taskCard({ t, s }).replace('role="button" tabindex="0"', '')}
+      <p class="meta">Added by ${esc(t.created_by || '—')}${t.updated_by ? ' · Updated by ' + esc(t.updated_by) : ''}</p>
+      <div class="card"><h3>✨ Log completion</h3>
+        <label>Date</label><input id="cdate" type="date" value="${todayISO()}">
+        ${t.category === 'car' ? `<label>Odometer (mi)</label><input id="codo" type="number" inputmode="numeric" value="${esc(state.settings.odometer || '')}">` : ''}
+        <label>Notes</label><input id="cnotes" placeholder="Optional">
+        <button class="btn gold" id="log" style="width:100%;margin-top:10px">Mark done</button></div>
+      <div class="row">${s.due ? `<a class="btn ghost" style="text-align:center;text-decoration:none;padding-top:12px" target="_blank" rel="noopener" href="${esc(googleCalUrl(t, s.due))}">Google Calendar</a><button class="btn ghost" id="ics">Download .ics</button>` : ''}</div>
+      <div class="row" style="margin-top:8px"><button class="btn" id="edit">Edit</button><button class="btn danger" id="del">Delete</button></div>
+      <h3>History</h3><ul class="hist meta">${hist.map((h) => `<li>${fmtNice(h.done_on)}${h.odometer != null ? ' · ' + Number(h.odometer).toLocaleString() + ' mi' : ''} — ${esc(h.done_by || '')}${h.notes ? ': ' + esc(h.notes) : ''}</li>`).join('') || '<li>No completions logged yet.</li>'}</ul>`);
+    $('#x').onclick = closeSheet;
+    $('#edit').onclick = () => openForm(t);
+    $('#del').onclick = () => { if (confirm(`Delete "${t.name}"? This also removes its history.`)) { write('delete', 'maint_tasks', t.id); closeSheet(); } };
+    if ($('#ics')) $('#ics').onclick = () => download(t.name.replace(/\W+/g, '-') + '.ics', buildICS([{ task: t, due: s.due }]), 'text/calendar');
+    $('#log').onclick = (e) => logCompletion(t, e);
+  };
+  draw(state.completions[id] || []);
+  draw(await loadHistory(id));
+}
+async function logCompletion(t, ev) {
+  const done_on = $('#cdate').value || todayISO();
+  const odoEl = $('#codo'), odo = odoEl && odoEl.value !== '' ? parseInt(odoEl.value, 10) : null;
+  const notes = $('#cnotes').value.trim() || null;
+  const row = { id: crypto.randomUUID(), task_id: t.id, done_on, odometer: odo, notes, done_by: state.me };
+  await write('insert', 'maint_completions', row);
+  (state.completions[t.id] ||= []).unshift(row);
+  // Only advance last_done if this completion is the newest.
+  const upd = { id: t.id, updated_by: state.me };
+  if (!t.last_done || done_on >= t.last_done) { upd.last_done = done_on; if (odo != null) upd.last_done_miles = odo; }
+  await write('upsert', 'maint_tasks', { ...t, ...upd });
+  if (odo != null && (odometer() == null || odo > odometer())) await write('upsert', 'maint_settings', { key: 'odometer', value: String(odo) });
+  sparkle(ev);
+  openTask(t.id);
+}
+function sparkle(ev) {
+  const x = ev?.clientX || innerWidth / 2, y = ev?.clientY || innerHeight / 2;
+  for (let i = 0; i < 14; i++) {
+    const s = document.createElement('span'); s.className = 'sparkle'; s.textContent = ['✨', '⭐', '🌟'][i % 3];
+    s.style.left = x + 'px'; s.style.top = y + 'px';
+    s.style.setProperty('--dx', (Math.random() * 200 - 100) + 'px'); s.style.setProperty('--dy', (Math.random() * -180 - 20) + 'px');
+    document.body.appendChild(s); setTimeout(() => s.remove(), 1100);
+  }
+}
+function openForm(t) {
+  const v = t || { name: '', category: 'home', interval_value: 6, interval_unit: 'months', notes: '' };
+  sheet(`<h2>${t ? 'Edit task' : 'New task ✨'}</h2>
+    <label>Name</label><input id="fname" value="${esc(v.name)}" required>
+    <label>Category</label><select id="fcat"><option value="home">🏰 Home</option><option value="car">🚗 Car</option></select>
+    <div class="row"><div><label>Every</label><input id="fval" type="number" min="1" step="any" value="${esc(v.interval_value ?? '')}"></div>
+      <div><label>Unit</label><select id="funit"><option>days</option><option>weeks</option><option>months</option><option>miles</option></select></div></div>
+    <label>…or every (miles, optional)</label><input id="falt" type="number" inputmode="numeric" value="${esc(v.alt_interval_miles ?? '')}">
+    <div class="row"><div><label>Last done</label><input id="flast" type="date" value="${esc(v.last_done || '')}"></div>
+      <div><label>Last done (mi)</label><input id="flastmi" type="number" inputmode="numeric" value="${esc(v.last_done_miles ?? '')}"></div></div>
+    <label>First due (if never done)</label><input id="ffirst" type="date" value="${esc(v.first_due || '')}">
+    <label>Notes</label><textarea id="fnotes" rows="3">${esc(v.notes || '')}</textarea>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" id="cancel">Cancel</button><button class="btn gold" id="save">Save</button></div>`);
+  $('#fcat').value = v.category; $('#funit').value = v.interval_unit || 'months';
+  $('#cancel').onclick = () => t ? openTask(t.id) : closeSheet();
+  $('#save').onclick = async () => {
+    const name = $('#fname').value.trim(); if (!name) return alert('Please enter a name');
+    const num = (id) => $(id).value === '' ? null : Number($(id).value);
+    const row = { ...(t || { id: crypto.randomUUID(), created_by: state.me }), name, category: $('#fcat').value, interval_value: num('#fval'), interval_unit: $('#funit').value,
+      alt_interval_miles: num('#falt'), last_done: $('#flast').value || null, last_done_miles: num('#flastmi'), first_due: $('#ffirst').value || null,
+      notes: $('#fnotes').value.trim() || null, updated_by: state.me };
+    if (row.interval_unit === 'miles') row.alt_interval_miles = null;
+    delete row.updated_at; delete row.created_at;
+    await write('upsert', 'maint_tasks', row);
+    openTask(row.id);
+  };
+}
+
+// ====== Boot ======
+async function onSession(session) {
+  if (!session) { state.me = null; closeSheet(); renderLogin(); setLive(false, 'Signed out'); return; }
+  const local = session.user.email.split('@')[0];
+  state.me = local.charAt(0).toUpperCase() + local.slice(1); LS.set('me', state.me);
+  render();
+  await flushQueue(); await loadAll(); subscribe();
+}
+async function boot() {
+  if (!configured || !window.supabase) {
+    if (!configured) return renderSetup();
+    // supabase-js failed to load (offline first run): show cached data read-only
+    state.me = LS.get('me', null); if (state.me) { setLive(false); return render(); }
+    return ($('#app').innerHTML = '<p class="setup">You’re offline. Connect once to sign in. ✨</p>');
+  }
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+  const { data } = await sb.auth.getSession();
+  sb.auth.onAuthStateChange((evt, session) => { if (evt === 'SIGNED_IN' || evt === 'SIGNED_OUT') onSession(session); });
+  await onSession(data.session);
+}
+addEventListener('online', async () => { if (sb && state.me) { await flushQueue(); subscribe(); } });
+addEventListener('offline', () => { setLive(false); render(); });
+boot();
+</script>
+</body>
+</html>

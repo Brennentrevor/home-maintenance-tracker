@@ -1,6 +1,6 @@
 // Service worker v3: network-first for pages/app shell (3s timeout, cache fallback offline),
 // stale-while-revalidate for the supabase-js CDN + Google Fonts, never caches Supabase API.
-const CACHE_NAME = 'maint-v3';
+const CACHE_NAME = 'maint-v4';
 const SHELL = ['./', './index.html', './catalog.js', './manifest.json', './icon-192.png', './icon-512.png'];
 const SWR_PREFIXES = ['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'https://fonts.googleapis.com/', 'https://fonts.gstatic.com/'];
 

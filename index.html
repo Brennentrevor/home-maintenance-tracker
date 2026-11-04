@@ -105,7 +105,7 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--ca
 
 <script src="catalog.js"></script>
 <script>
-const APP_VERSION = 'v3';
+const APP_VERSION = 'v4';
 'use strict';
 // ====== CONFIG (fill in after creating the Supabase project) ======
 const SUPABASE_URL='https://evgpnpqtnemlbnygpbxs.supabase.co';
@@ -550,6 +550,7 @@ function openSuggest() {
 // ====== Boot ======
 async function onSession(session) {
   if (!session) { state.me = null; closeSheet(); renderLogin(); setLive(false, 'Signed out'); return; }
+  if (!/@homemaint\.example$/i.test(session.user.email || '')) { LS.set('me', null); await sb.auth.signOut(); return; }
   const local = session.user.email.split('@')[0];
   state.me = local.charAt(0).toUpperCase() + local.slice(1); LS.set('me', state.me);
   render();
@@ -562,7 +563,7 @@ async function boot() {
     state.me = LS.get('me', null); if (state.me) { setLive(false); return render(); }
     return ($('#app').innerHTML = '<p class="setup">You’re offline. Connect once to sign in. ✨</p>');
   }
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { storageKey: 'maint-auth-v1', persistSession: true, autoRefreshToken: true } });
   const { data } = await sb.auth.getSession();
   sb.auth.onAuthStateChange((evt, session) => { if (evt === 'SIGNED_IN' || evt === 'SIGNED_OUT') onSession(session); });
   await onSession(data.session);
